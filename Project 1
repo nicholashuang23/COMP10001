@@ -1,0 +1,185 @@
+def get_friendly_dict(friend_list):
+    """ Accepts a list of 2-element tuples which represent immediate friendship
+    links and returns a dictionary of individuals and their friends as a set"""
+    
+    names = []
+    dict_list = {}
+    
+    # Gather up all the names without repeats into a list
+    for word in friend_list:
+        names += word   
+    all_names = set(names)
+    all_names1 = list(all_names)
+
+    # create sets of friends for each person and bind them to a dictionary
+    for name in all_names1:
+        set_of_names = set()
+        for tuples in friend_list:
+            if name in tuples:
+                for element in tuples:
+                    if element != name:
+                        set_of_names.add(element)            
+        dict_list[name] = set_of_names
+        
+    return dict_list
+  
+  
+  
+def friend_besties(individual, bestie_dict):
+    """ Input is a individual's name and a dictionary of everyone
+    and their besties and the output is a list of the individual's besties""" 
+    
+    # search through destie_dict for individual and then index their besties
+    if individual in bestie_dict:
+        degree_one_friends = sorted(bestie_dict[individual])
+        return degree_one_friends
+    else:
+        return []
+        
+
+
+def friend_second_besties(individual, bestie_dict):
+    """ Accepts two arguments: one of a individual and another of a dictionary
+    of sets of friends for each person. The function looks into the dictionary 
+    and indexes the individual's key finding out their immediate friends. Then 
+    we index those immediate friends and add the friends of the individual's
+    immediate friends to a list and removing the individual from the list.
+    The output is the individual's degree-two friends 
+    (friends of their immediate friend/s) as a list"""
+    degree_two_friends = []
+    immediate_friends = []
+    
+    # give empty list if individual is not a person in the dictionary 
+    if individual not in bestie_dict:
+        return []
+    else:
+        
+        # Add the friends of the individual's immediate friend/s to a list
+        for individuals_friend in bestie_dict[individual]:
+            degree_two_friends += bestie_dict[individuals_friend]           
+    
+        # Add the individual's immediate friends to a list
+        for friends in bestie_dict[individual]:
+            immediate_friends.append(friends)
+    
+        # Find the names of friends only second-degree not first-degree aswell
+        immediate_friends = set(immediate_friends)
+        degree_two_friends = set(degree_two_friends)
+        second_degree_friends = degree_two_friends - immediate_friends
+
+        # Remove the individual from the set
+        second_degree_friends.remove(individual)
+        second_degree_friends = sorted(list(second_degree_friends))
+
+
+
+from hidden import friend_besties, friend_second_besties
+
+def besties_coverage(individuals, bestie_dict, relationship_list):
+    """ Input of 3 arguments: list of individuals, dictionary of individuals
+    and their immediate friends and a list of functions which should be used.
+    The function will find how many individual people are social network by 
+    adding all the names into a set. Then will add everyone in the list of 
+    individuals to a list and if no functions are required in relationship_list
+    then divide list of individuals by the number of people in the social 
+    network which comes out as a float. If functions are required, those are
+    performed with their outputs added to the list of individuals and that list 
+    will be divided by number of people in the social network to get a float"""
+
+    final_list = []
+    names = []
+    
+    # Add all the unique names into a list and find how many names are in it
+    for key in bestie_dict:
+        names.append(key)   
+    all_names = set(names)
+    all_names1 = list(all_names)
+    all_unique_names = len(all_names1)
+    
+    # Add all people in individuals to a final output list
+    for name in individuals:
+        final_list.append(name)
+    
+    # Give output of proportion of social network represented by final list
+    # Run if no functions needed to be used
+    if relationship_list == []:
+        return len(final_list) / all_unique_names
+    
+    # Run functions if called using (individual/s, bestie_dict) as arguments
+    # Add the outputs of the functions into a list
+    for individual in individuals:
+        if friend_besties in relationship_list:
+            friend_besties_output = friend_besties(individual, bestie_dict)
+            for name in friend_besties_output:
+                final_list.append(name)
+        if friend_second_besties in relationship_list:
+            friend_second_besties_output = friend_second_besties(individual, 
+                                                          bestie_dict)
+            for name in friend_second_besties_output:
+                final_list.append(name)
+    return len(final_list) / all_unique_names
+        return second_degree_friends
+
+
+from hidden import friend_besties, friend_second_besties
+
+def friendly_prediction(unknown_user, features, bestie_dict, feat_dict):
+    """Input is three arguments: an unknown user that you are trying to predict
+    attributes of their life based on friends attributes, features that are
+    wanted to be predicted, dictionary of sets of a person and their besties,
+    and a feature dictionary containing known features of people.
+    The function will create a dictionary of each feature wanted as keys and
+    have each person's attribute for that feature added to a list.First look 
+    through immediate besties features and if they do not have the feature 
+    required, we look through friends of their immediate besties
+    (second besties). Then we return the dictionary with the values for each 
+    feature/key sorted."""
+    users_friends = friend_besties(unknown_user, bestie_dict)
+    users_second_besties = friend_second_besties(unknown_user, bestie_dict)
+    attribute_dictionary = {}
+    
+    
+    # compile a dictionary with features as a key and a list of the individuals
+    # immediate friends attributes for that feature added 
+    for feature in features:
+        attribute_dictionary[feature] = []
+        for friend in users_friends:
+            if friend in feat_dict and feature in feat_dict[friend]:
+                attribute_dictionary[feature].append(feat_dict
+                                                            [friend][feature])
+                attribute_dictionary[feature] = sorted(attribute_dictionary
+                                                       [feature])
+        # go through second besties for the features required and do the same
+        # thing as with the besties only if there are no besties with that
+        # feature presented
+        if attribute_dictionary[feature] == []:
+            for friend in users_second_besties:
+                if friend in feat_dict and feature in feat_dict[friend]:
+                    attribute_dictionary[feature].append(
+                                                feat_dict[friend][feature])
+                    attribute_dictionary[feature] = sorted(attribute_dictionary
+                                                       [feature])
+        # Find the attribute most common in each feature and add that attribute
+        # to be shown in the output  
+        for feature in attribute_dictionary:
+            dict_list = {}
+            mode = 0
+            mode_list = []
+            # sort words into a dict list with frequencies of appearances 
+            for attribute in attribute_dictionary[feature]:
+                if attribute in dict_list:
+                    dict_list[attribute] +=1
+                else:
+                    dict_list[attribute] = 1
+            
+            # find the attribute with the highest frequency and add that word
+            # to the feature list.
+            for key in dict_list:
+                if dict_list[key] > mode:
+                    mode = dict_list[key]
+                    mode_list.append(key)
+                elif dict_list[key] == mode:
+                    mode_list.append(key)
+            attribute_dictionary[feature] = mode_list
+            
+    return attribute_dictionary
