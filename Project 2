@@ -1,0 +1,297 @@
+# testing of floats when added to the list of list
+def parse_scenario(filename):
+    """Takes a file as the input and the function validates that the file
+    contains specific values that are valid for two lists of lists representing
+    a grid, an integer, a string for wind direction and a list of tuples.
+    Returns a dictionary of those catergories as keys and its correct values"""
+    file_content = []
+    final_list = []
+    dict_keys = 'f_grid', 'h_grid', 'i_threshold', 'w_direction', 'burn_seeds'
+    my_dict = {}
+    tuple_list = []
+    wind_direction = ['N' or 'S' or 'W' or 'E' or 
+    'NW' or 'NE' or 'SE' or 'SW']
+    
+    # Open and sort file into lines of code so it can be used
+    file = open(filename).readlines()
+    for string in file:
+        string = string.strip()
+        file_content.append(string)
+    
+    # create a list of lists for each type of data eg f_grid, h_grid, i_thresh
+    list_of_lists = []
+    for string in file_content:
+        list_of_lists.append(string.split(','))
+    for sublist in list_of_lists:
+        sublist_ints = []
+        for char in sublist:
+            if char.isdigit():
+                if float(char) != int(char):
+                    return None
+                sublist_ints.append(int(char))
+            else:
+                sublist_ints.append(char)
+        final_list.append(sublist_ints)
+    
+    # setting up dictionary with keys and values as empty lists
+    for key in dict_keys:
+        my_dict[key] = []
+    
+    grid_length = final_list[0][0]
+    
+    # find dimensions of the square grid and check if it is a positive int
+    if grid_length < 1 or type(grid_length) != int:
+        return None
+    
+    # Check for the rows of f_grid and h_grid(as they should be same structure
+    # and length) for whether length of each row is the same as grid dimensions
+    # and whether each value is a positive integer not outside the grid
+    for row in final_list[1:grid_length * 2 + 1]:
+        if len(row) != grid_length:
+            return None
+        for num in row:
+            if type(num) != int or num < 0:
+                return None
+    
+    # Check if i_threshold is a positive integer and not greater than 8
+    for number in final_list[grid_length * 2 + 1]:
+        if (type(number) != int or len(final_list[-3]) != 1 or 
+            number > 8 or number < 1):
+            return None
+        
+    # Check if burn_seeds is located on the landscape and whether it has a
+    # a non-zero intial fuel load and all burn seeds to a list
+    for tupl in final_list[grid_length * 2 + 3:]:
+        fuel_grid = final_list[1:grid_length + 1]
+        if fuel_grid[tupl[0]][tupl[1]] == 0:
+            return None
+        for number in tupl:
+            if number < 0 or type(number) != int or number > grid_length - 1:
+                return None
+        tuple_list.append(tuple(tupl))
+    
+    # add values of each dictionary values
+    my_dict['f_grid'] = final_list[1:grid_length +1]
+    my_dict['h_grid'] = final_list[grid_length + 1:grid_length * 2 + 1]
+    my_dict['i_threshold'] = final_list[grid_length * 2 + 1][0]
+    
+    # Check if the wind direction is valid
+    if final_list[grid_length * 2 + 2][0] == 'None':
+        my_dict['w_direction'] = None
+    else:
+        my_dict['w_direction'] = final_list[grid_length * 2 + 2][0]
+    if final_list[grid_length * 2 + 2][0] not in wind_direction:
+        return None
+    
+    # add values of each dictionary values
+    my_dict['burn_seeds'] = tuple_list
+    return my_dict
+    
+   
+def check_ignition(b_grid, f_grid, h_grid, i_threshold, w_direction, i, j):
+    """Accepts a b_grid, f_grid, h_grid which are in the form of a list of lists
+     of M by M dimensions, i_threshold, w_direction and two numbers i, j. The
+     function tests whether the cell at location i,j will be burning in time
+     t + 1 returning a True or False value"""
+    grid_length = len(b_grid[0])
+    my_dict = {}
+    burning_cells_t0 =[]
+    test_coordinates = (i, j)
+    test_cell_row = i
+    test_cell_position = j
+    adjacent_cells = {}
+    all_adjacent_cells = []
+    adjacent_cell_values = [-1, 0, 1]
+    wind_adjacent_cell_values = [(2, 1), (2, 2), (1, 2)]
+    adjacent_cell_i_factor = 0
+    rubbish = []
+    empty = []
+    if f_grid[i][j] == 0:
+        return False
+    
+    # create a dict with key = coordinate and value = bool, fuel load, height 
+    for row in range(grid_length):
+        for position in range(grid_length):
+            my_dict[row, position] = (b_grid[row][position], 
+                           f_grid[row][position], h_grid[row][position])
+    
+    # check if test coordinates are already on fire
+    if my_dict[test_coordinates][0] is True:
+        if my_dict[test_coordinates][1] == 1:
+            return False
+        else:
+            return True
+    
+    # Check whether a cell is burning
+    for key in my_dict:
+        if my_dict[key][0] is True:
+            burning_cells_t0.append((key))
+    
+    # Add all cells considered adjacent to a burning cell to a dict with 
+    # the key as it's coordinate
+    for cell in burning_cells_t0:
+        adjacent_cell = []
+        adjacent_cell.append((cell[0], cell[1] + 1))
+        adjacent_cell.append((cell[0], cell[1] - 1))
+        for number in adjacent_cell_values:
+            adjacent_cell.append((cell[0] - 1, cell[1] + number))
+            adjacent_cell.append((cell[0] + 1, cell[1] + number))
+        
+        # Same as above factoring in wind    
+        for number in adjacent_cell_values: 
+            if w_direction is 'N':
+                adjacent_cell.append((cell[0] + 2, cell[1] + number))
+            elif w_direction is 'S':
+                adjacent_cell.append((cell[0] - 2, cell[1] + number))
+            elif w_direction is 'W':
+                adjacent_cell.append((cell[0] + number, cell[1] + 2))
+            elif w_direction is 'E':
+                adjacent_cell.append((cell[0] + number, cell[1] - 2))
+        for pair in wind_adjacent_cell_values:
+            if w_direction is 'NE':
+                adjacent_cell.append((cell[0] + pair[0], cell[1] - pair[1]))
+            elif w_direction is 'NW':
+                adjacent_cell.append((cell[0] + pair[0], cell[1] + pair[1]))
+            elif w_direction is 'SW':
+                adjacent_cell.append((cell[0] - pair[0], cell[1] + pair[1]))
+            elif w_direction is 'SE':
+                adjacent_cell.append((cell[0] - pair[0], cell[1] - pair[1]))
+        for tupl in adjacent_cell:
+            if (tupl[0] < 0 or tupl[0] > grid_length - 1 or 
+            tupl[1] < 0 or tupl[1] > grid_length - 1):
+                rubbish.append(tupl)
+        
+        # Removing cells out of the grid and add the remaining to dict
+        for a in rubbish:
+            if a in adjacent_cell:
+                adjacent_cell.remove(a)
+        adjacent_cells[cell] = adjacent_cell
+    
+    # Check whether test coordinate is in the pool of all adjacent cells
+    for key in adjacent_cells:
+        all_adjacent_cells.append(adjacent_cells[key])
+    for value in all_adjacent_cells:    
+        for i in range(len(value)):
+            empty.append(value[i])
+    if test_coordinates not in empty:
+        return False
+    
+    # Compare ignition factor of desired cell to ignition threshold to see if 
+    # it burns
+    for burning_cell in burning_cells_t0:
+        height_test_cell = h_grid[test_cell_row][test_cell_position]
+        if test_coordinates in adjacent_cells[burning_cell]:
+            height_burning_cell = my_dict[burning_cell][2]
+            if height_test_cell > height_burning_cell:
+                adjacent_cell_i_factor += 2
+            elif height_test_cell == height_burning_cell:
+                adjacent_cell_i_factor += 1
+            elif height_test_cell < height_burning_cell:
+                adjacent_cell_i_factor += 0.5
+    if adjacent_cell_i_factor >= i_threshold:
+        return True
+    else:
+        return False
+        
+        
+        
+
+from reference import check_ignition
+
+def run_model(f_grid, h_grid, i_threshold, w_direction, burn_seeds):
+    """This function takes arguments f_grid, h_grid, i_threshold, 
+    w_direction, burn_seeds to run a model of a bushfire in a grid. This
+    function gets all the burning cells at a time t and finds all the adjacent
+    cells to the burning cell and uses function check_ignition to see if at
+    time t+1, the adjacent cells will burn aswell. The final output is square
+    grid of M x M dimensions of the fuel load remaining in each cell and
+    the number of cells that fully burnt out"""
+    grid_length = len(f_grid)
+    b_grid = []
+    burning_cells = []
+    adjacent_cell_values = [-1, 0, 1]
+    wind_adjacent_cell_values = [(2, 1), (2, 2), (1, 2)]
+    adjacent_cells_dict = {}
+    rubbish_adjacent_cells = []
+    counter = 0
+    
+    # add all tuples in burn_seeds to a list of all cells burning at a 
+    # particular time
+    for pair in burn_seeds:
+        burning_cells.append(pair)
+    
+    # create b_grid to use check ignition
+    for num in range(grid_length):
+        position_list = []
+        for num1 in range(grid_length):
+            if (num, num1) in burn_seeds:
+                position_list.append(True)
+            else:
+                position_list.append(False)
+        b_grid.append(position_list)
+    
+    # find all adjacent cells of each burning cell
+    while len(burning_cells) != 0:
+        for cell in burning_cells:
+            adjacent_cell = []
+            adjacent_cell.append((cell[0], cell[1] + 1))
+            adjacent_cell.append((cell[0], cell[1] - 1))
+            for number in adjacent_cell_values:
+                adjacent_cell.append((cell[0] - 1, cell[1] + number))
+                adjacent_cell.append((cell[0] + 1, cell[1] + number))
+
+            # Find adjacent cell of burning cells based on wind
+            for number in adjacent_cell_values: 
+                if w_direction is 'N':
+                    adjacent_cell.append((cell[0] + 2, cell[1] + number))
+                elif w_direction is 'S':
+                    adjacent_cell.append((cell[0] - 2, cell[1] + number))
+                elif w_direction is 'W':
+                    adjacent_cell.append((cell[0] + number, cell[1] + 2))
+                elif w_direction is 'E':
+                    adjacent_cell.append((cell[0] + number, cell[1] - 2))
+            for pair in wind_adjacent_cell_values:
+                if w_direction is 'NE':
+                    adjacent_cell.append((cell[0] + pair[0], 
+                                          cell[1] - pair[1]))
+                elif w_direction is 'NW':
+                    adjacent_cell.append((cell[0] + pair[0], 
+                                          cell[1] + pair[1]))
+                elif w_direction is 'SW':
+                    adjacent_cell.append((cell[0] - pair[0], 
+                                          cell[1] + pair[1]))
+                elif w_direction is 'SE':
+                    adjacent_cell.append((cell[0] - pair[0], 
+                                          cell[1] - pair[1]))
+            
+            # remove cells outside the grid and append adjacent 
+            # cell coordinates to the dictionary
+            for tupl in adjacent_cell:
+                if (tupl[0] < 0 or tupl[0] > grid_length - 1 or 
+                tupl[1] < 0 or tupl[1] > grid_length - 1):
+                    rubbish_adjacent_cells.append(tupl)
+            for tuples in rubbish_adjacent_cells:
+                if tuples in adjacent_cell:
+                    adjacent_cell.remove(tuples)
+            adjacent_cells_dict[cell] = adjacent_cell
+
+        # Modify f_grid and b_grid to indicate time passing and removing
+        # A cell if it has fuel load 0
+        for pair in burning_cells:
+            b_grid[pair[0]][pair[1]] = True
+            f_grid[pair[0]][pair[1]] = (f_grid[pair[0]][pair[1]]) - 1
+            if f_grid[pair[0]][pair[1]] == 0:
+                burning_cells.remove(pair)
+                counter += 1
+        
+        # Check for each adjacent cell whether it will be burning at time t + 1
+        # and add it to a list of burning cells if yes
+        for key in adjacent_cells_dict:
+            for tuples in adjacent_cells_dict[key]:
+                if (tuples not in burning_cells and check_ignition(b_grid, 
+                f_grid, h_grid, i_threshold, w_direction, 
+                tuples[0], tuples[1]) is True):
+                    burning_cells.append(tuples)
+        for pair in burning_cells:
+            b_grid[pair[0]][pair[1]] = True            
+    return f_grid, counter
